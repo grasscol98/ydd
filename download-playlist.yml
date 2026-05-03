@@ -1,0 +1,52 @@
+name: Download Playlist Videos
+
+on:
+  workflow_dispatch:  # اجرای دستی
+    inputs:
+      playlist_url:
+        description: 'آدرس پلی‌لیست'
+        required: true
+        default: 'https://www.youtube.com/playlist?list=...'
+      quality:
+        description: 'کیفیت ویدیو (best/worst/135/136)'
+        required: false
+        default: 'best'
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    
+    - name: Install yt-dlp
+      run: |
+        pip install yt-dlp
+    
+    - name: Create videos directory
+      run: |
+        mkdir -p videos
+        mkdir -p metadata
+    
+    - name: Download playlist
+      run: |
+        python download_playlist.py "${{ github.event.inputs.playlist_url }}" "${{ github.event.inputs.quality }}"
+    
+    - name: Generate video list
+      run: |
+        ls -lah videos/ > video_list.txt
+        echo "تعداد ویدیوها: $(ls videos/*.mp4 2>/dev/null | wc -l)" >> video_list.txt
+    
+    - name: Commit and push videos
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add videos/ metadata/ video_list.txt
+        git diff --quiet && git diff --staged --quiet || git commit -m "Add downloaded videos from playlist"
+        git push
