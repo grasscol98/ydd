@@ -1,0 +1,34 @@
+name: Cleanup Old Videos
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # هر یکشنبه ساعت 00:00
+  workflow_dispatch:  # اجرای دستی
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Clean old videos
+      run: |
+        # حذف ویدیوهای قدیمی‌تر از 30 روز
+        find videos/ -name "*.mp4" -type f -mtime +30 -delete
+        find videos/ -name "*.webm" -type f -mtime +30 -delete
+        find metadata/ -name "*.json" -type f -mtime +30 -delete
+        
+        # به‌روزرسانی لیست
+        ls -lah videos/ > video_list.txt
+        echo "آخرین بروزرسانی: $(date)" >> video_list.txt
+        echo "تعداد ویدیوهای باقیمانده: $(ls videos/*.mp4 2>/dev/null | wc -l)" >> video_list.txt
+    
+    - name: Commit changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add videos/ metadata/ video_list.txt
+        git diff --quiet && git diff --staged --quiet || git commit -m "Cleanup old videos"
+        git push
